@@ -56,6 +56,7 @@ export default class RequestOptions {
     _changedHeaders: ChangedProperty[] = [];
     _removedHeaders: string[] = [];
     _eventEmitter: EventEmitter = new EventEmitter();
+    isNativeAutomation: boolean;
 
     constructor (params: RequestOptionsInit, trackChanges = false) {
         Object.assign(this, DEFAULT_REQUEST_OPTIONS, params);
@@ -98,7 +99,14 @@ export default class RequestOptions {
 
         obj = new Proxy(obj, {
             set (target: RequestOptions, propName: string, newValue: any): boolean {
-                if (target[propName] !== newValue) {
+                if (propName === 'body') {
+                    // NOTE: automatically change content-length on body (postData) update
+                    // this should only be done in not native automation
+                    if (newValue instanceof Buffer && !self.isNativeAutomation)
+                        obj.headers['content-length'] = newValue.length.toString();
+
+                }
+                else if (target[propName] !== newValue) {
                     const changedUrlProperty = {
                         name:  propName,
                         value: newValue,
@@ -150,6 +158,7 @@ export default class RequestOptions {
             requestTimeout:        ctx.session.options.requestTimeout,
             isWebSocket:           ctx.isWebSocket,
             disableHttp2:          ctx.session.isHttp2Disabled(),
+            isNativeAutomation:    ctx.nativeAutomation,
         });
     }
 
